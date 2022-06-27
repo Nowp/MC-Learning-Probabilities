@@ -1,4 +1,7 @@
 import stormpy
+import stormpy.examples
+import stormpy.examples.files
+
 import numpy as np
 
 N = 1000
