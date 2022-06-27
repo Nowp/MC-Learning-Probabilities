@@ -38,3 +38,10 @@ def parse_observations(path: str) -> np.ndarray:
         lines = [[int(val) for val in newline] for newline in lines]
 
     return np.array(lines)
+
+
+if __name__ == "__main__":
+    program = stormpy.parse_prism_program(stormpy.examples.files.prism_dtmc_die)
+    model = stormpy.build_model(program)
+
+    gen_observations(model)
