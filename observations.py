@@ -1,4 +1,5 @@
 import doctest
+
 doctest.ELLIPSIS_MARKER = '-etc-'
 import stormpy
 import stormpy.examples
@@ -8,6 +9,9 @@ import numpy as np
 
 N = 1000
 DEFAULT_PATH = "observations.dat"
+
+program = stormpy.parse_prism_program(stormpy.examples.files.prism_dtmc_die)
+model = stormpy.build_model(program)
 
 
 def gen_observations(model: stormpy.SparseDtmc, size: int = N, path=DEFAULT_PATH) -> None:
@@ -23,9 +27,23 @@ def gen_observations(model: stormpy.SparseDtmc, size: int = N, path=DEFAULT_PATH
     for state in model.states:
         for action in state.actions:
             for transition in action.transitions:
-                transitions.append((state.id, transition.value(), transition.column))
+                transitions.append((state.id, transition.column))
 
     with open(path, "w") as fw:
-        obs = [transitions[i] for i in np.random.randint(0, len(transitions)-1, size)]
-        for (s, v, d) in obs:
-            fw.write(f"{s} {v} {d}\n")
+        obs = [transitions[i] for i in np.random.randint(0, len(transitions) - 1, size)]
+        for (s, d) in obs:
+            fw.write(f"{s} {d}\n")
+
+
+def parse_observations(path: str) -> np.ndarray:
+    """
+    Reads a list of observations from a given file.
+    :param path: Destination of the file with the observations.
+    :return: 1-D Array of tuple with each element like (Start State, Destination State)
+    """
+    with open(path, "r") as fr:
+        lines = fr.readlines()
+        lines = [newline.split(" ") for newline in lines]
+        lines = [[int(val) for val in newline] for newline in lines]
+
+    return np.array(lines)
