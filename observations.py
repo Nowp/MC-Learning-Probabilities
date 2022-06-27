@@ -1,17 +1,8 @@
-import doctest
-
-doctest.ELLIPSIS_MARKER = '-etc-'
 import stormpy
-import stormpy.examples
-import stormpy.examples.files
-
 import numpy as np
 
 N = 1000
 DEFAULT_PATH = "observations.dat"
-
-program = stormpy.parse_prism_program(stormpy.examples.files.prism_dtmc_die)
-model = stormpy.build_model(program)
 
 
 def gen_observations(model: stormpy.SparseDtmc, size: int = N, path=DEFAULT_PATH) -> None:
