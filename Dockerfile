@@ -10,7 +10,7 @@ RUN apt install -y openjdk-17-jre build-essential git cmake libboost-all-dev lib
 WORKDIR /opt
 RUN git clone https://github.com/moves-rwth/storm.git --branch 1.6.4
 WORKDIR /opt/storm/build
-RUN cmake ..
+RUN cmake -DSTORM_USE_SPOT_SYSTEM=OFF -DSTORM_USE_SPOT_SHIPPED=ON ..
 RUN make
 
 # Install stormpy
