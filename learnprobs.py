@@ -9,7 +9,7 @@ import stormpy.examples.files
 import observations
 
 
-def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarray, labels: stormpy.StateLabeling = None) -> stormpy.SparseDtmc:
+def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix, labels: stormpy.StateLabeling = None) -> stormpy.SparseDtmc:
     """
     Creates a DTMC model from a given transition matrix.
 
@@ -18,13 +18,7 @@ def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarra
     :param row: Row array (Number of states elements + 1)
     :param labels: Dictionary of String -> BitVector used to assign label to each state
     """
-    N_states = row.shape[0] - 1
-    builder = stormpy.SparseMatrixBuilder(rows=N_states, columns=N_states)
-    for s in range(N_states):
-        for i in range(row[s], row[s + 1]):
-            c = col[i]
-            v = values[i]
-            builder.add_next_value(s, c, v)
+    N_states = trans_matrix.nr_rows
 
     trans_matrix = builder.build()
     if labels is None:
@@ -50,11 +44,11 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
     :param sample: List of random observations on the model
     :param model: DTMC model which we want to learn the transition probabilities.
     """
-    N_states = len(model.states)
-    N = np.zeros(N_states)
+    n_states = len(model.states)
+    n = np.zeros(n_states)
     nb_trans = [len(s.actions[0].transitions) for s in model.states]
-    row = np.zeros(N_states + 1, numpy.int8)
-    for s in range(N_states):
+    row = np.zeros(n_states + 1, numpy.int8)
+    for s in range(n_states):
         row[s + 1] = row[s] + nb_trans[s]
 
     col = []
@@ -66,17 +60,21 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
     values = np.zeros(np.sum(nb_trans))
 
     for (start, dest) in sample:
-        N[start] += 1
+        n[start] += 1
         i = row[start]
         for j in range(i, row[start + 1]):
             if col[j] == dest:
                 values[j] += 1
 
-    for s in range(N_states):
+    builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states)
+    for s in range(n_states):
         for i in range(row[s], row[s + 1]):
-            values[i] = (values[i] + smoothing) / (N[s] + nb_trans[s] * smoothing)
+            values[i] = (values[i] + smoothing) / (n[s] + nb_trans[s] * smoothing)
+            c = col[i]
+            v = values[i]
+            builder.add_next_value(s, c, v)
 
-    return row, col, values
+    return builder.build()
 
 
 if __name__ == "__main__":
@@ -98,8 +96,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         method = sys.argv[1]
         if method == "frequentist":
-            r, c, v = frequentist(obs, model)
-            m = model_from_sparse_matrix(r, c, v, model.labeling)
+            matrix = frequentist(obs, model)
+            m = model_from_sparse_matrix(matrix, model.labeling)
 
             for state in m.states:
                 for action in state.actions:
