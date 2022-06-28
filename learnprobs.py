@@ -21,7 +21,6 @@ def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix, labels: stormpy
     """
     N_states = trans_matrix.nr_rows
 
-    trans_matrix = builder.build()
     if labels is None:
         labeling = stormpy.storage.StateLabeling(N_states)
     else:
