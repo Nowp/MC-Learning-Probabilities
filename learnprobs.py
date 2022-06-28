@@ -85,6 +85,16 @@ if __name__ == "__main__":
 
     obs = observations.parse_observations(observations.DEFAULT_PATH)
 
+    properties_raw = [
+        'P=? [F "one"]',
+        'P=? [F "two"]',
+        'P=? [F "three"]',
+        'P=? [F "one" | "two" | "three"]',
+    ]
+
+    properties = stormpy.parse_properties(';'.join(properties_raw))
+    m = None
+
     if len(sys.argv) > 1:
         method = sys.argv[1]
         if method == "frequentist":
@@ -95,3 +105,12 @@ if __name__ == "__main__":
                 for action in state.actions:
                     for transition in action.transitions:
                         print(f"{state.id}, {state.labels}, {transition.value()}, {transition.column}")
+
+        for p in range(len(properties)):
+            result_base = stormpy.model_checking(model, properties[p])
+            result_base_vector = [x for x in result_base.get_values()]
+
+            result_predict = stormpy.model_checking(m, properties[p])
+            result_predict_vector = [x for x in result_predict.get_values()]
+
+            print(f"{p} : \n\tPrediction:\t{result_base_vector}\n\tBase:\t\t{result_predict_vector}")
