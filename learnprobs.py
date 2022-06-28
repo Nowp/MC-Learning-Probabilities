@@ -9,16 +9,13 @@ import stormpy.examples.files
 import observations
 
 
-def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarray,
-                             scale_prob: bool = False) -> stormpy.SparseDtmc:
+def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarray) -> stormpy.SparseDtmc:
     """
     Creates a DTMC model from a given transition matrix.
 
     :param values: Value array (Number of Non-Zero elements)
     :param col: Col array (Number of Non-Zero elements)
     :param row: Row array (Number of states elements + 1)
-    :param scale_prob: If True, will make the sum of outgoing transitions equal to 1 for each state.
-    TODO: scale_prob Not Implemented
     """
     N_states = row.shape[0]-1
     builder = stormpy.SparseMatrixBuilder(rows=N_states, columns=N_states)
