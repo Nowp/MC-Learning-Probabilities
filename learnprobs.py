@@ -9,15 +9,16 @@ import stormpy.examples.files
 import observations
 
 
-def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarray) -> stormpy.SparseDtmc:
+def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarray, labels: stormpy.StateLabeling = None) -> stormpy.SparseDtmc:
     """
     Creates a DTMC model from a given transition matrix.
 
     :param values: Value array (Number of Non-Zero elements)
     :param col: Col array (Number of Non-Zero elements)
     :param row: Row array (Number of states elements + 1)
+    :param labels: Dictionary of String -> BitVector used to assign label to each state
     """
-    N_states = row.shape[0]-1
+    N_states = row.shape[0] - 1
     builder = stormpy.SparseMatrixBuilder(rows=N_states, columns=N_states)
     for s in range(N_states):
         for i in range(row[s], row[s + 1]):
@@ -26,9 +27,13 @@ def model_from_sparse_matrix(row: np.ndarray, col: np.ndarray, values: np.ndarra
             builder.add_next_value(s, c, v)
 
     trans_matrix = builder.build()
-    labels = stormpy.storage.StateLabeling(N_states)
+    if labels is None:
+        labeling = stormpy.storage.StateLabeling(N_states)
+    else:
+        labeling = labels
+
     components = stormpy.SparseModelComponents(transition_matrix=trans_matrix)
-    components.state_labeling = labels
+    components.state_labeling = labeling
     dtmc = stormpy.storage.SparseDtmc(components)
     return dtmc
 
@@ -84,9 +89,9 @@ if __name__ == "__main__":
         method = sys.argv[1]
         if method == "frequentist":
             r, c, v = frequentist(obs, model)
-            m = model_from_sparse_matrix(r, c, v)
+            m = model_from_sparse_matrix(r, c, v, model.labeling)
 
             for state in m.states:
                 for action in state.actions:
                     for transition in action.transitions:
-                        print(f"{state.id}, {transition.value()}, {transition.column}")
+                        print(f"{state.id}, {state.labels}, {transition.value()}, {transition.column}")
