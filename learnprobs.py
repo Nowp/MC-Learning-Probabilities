@@ -86,46 +86,44 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
     """
     n_states = model.nr_states
     m = model.nr_transitions
-    n_choices = max(np.transpose(sample)[2]) + 1
-    nb_trans = [len(s.actions[0].transitions) for s in model.states]
+    n_choices = [len(s.actions) for s in model.states]
+    nb_trans = np.zeros([max(n_choices), n_states])
 
-    row = np.zeros(n_states + 1, numpy.int8)
-    for s in range(n_states):
-        row[s + 1] = row[s] + nb_trans[s]
+    row = np.zeros([max(n_choices), n_states + 1], numpy.int8)
 
-    col = []
+    col = [[] for _ in range(max(n_choices))]
     for s in model.states:
-        for t in s.actions[0].transitions:
-            col.append(t.column)
-    col = np.array(col)
+        for act in s.actions:
+            nb_trans[act.id][s.id] = len(act.transitions)
+            for t in act.transitions:
+                col[act.id].append(t.column)
+                row[act.id, s.id + 1] = row[act.id, s.id] + nb_trans[act.id][s.id]
 
-    values = np.zeros(np.sum(nb_trans))
-    a = np.ones([n_choices, m])
-    k = np.zeros([n_choices, m, m])
+    values = np.zeros([max(n_choices), m])
+    a = np.ones([max(n_choices), m])
 
     # Count N and k's values
     for (start, dest, choice) in sample:
-        i = row[start]
-        for j in range(i, row[start + 1]):
-            if col[j] == dest:
-                k[choice, i, j] += 1
-
-    # Updates alpha (a) by adding k's values to it.
-    for i in range(len(k)):
-        for elem in k[i]:
-            a[i] += elem
+        i = row[choice, start]
+        for j in range(i, row[choice, start + 1]):
+            if col[choice][j] == dest:
+                a[choice, j] += 1
 
     # estimate p with the mode
+    choice = 0
+    next_group = 0
     builder = stormpy.SparseMatrixBuilder(rows=0, columns=0, force_dimensions=False, has_custom_row_grouping=True, row_groups=0)
     for s in range(n_states):
-        builder.new_row_group(s)
-        for choice in range(n_choices):
-            start, end = row[s], row[s + 1]
+        builder.new_row_group(next_group)
+        for choice in range(next_group, next_group+n_choices[s]):
+            local_choice = choice - next_group
+            start, end = row[local_choice, s], row[local_choice, s + 1]
             for i in range(start, end):
-                values[i] = (a[choice][i] - 1) / (sum(a[choice][start:end]) - nb_trans[s]) if a[choice][i] > 1 else 0
-                c = col[i]
-                v = values[i]
+                values[local_choice, i] = (a[local_choice, i] - 1) / (sum(a[local_choice, start:end]) - nb_trans[local_choice, s]) if a[local_choice, i] > 1 else 0
+                c = col[local_choice][i]
+                v = values[local_choice, i]
                 builder.add_next_value(choice, c, v)
+        next_group = choice + 1
 
     return builder.build()
 
@@ -137,13 +135,13 @@ if __name__ == "__main__":
     obs = observations.parse_observations(observations.DEFAULT_PATH)
 
     properties_raw = [
-        'P=? [F "one"]',
-        'P=? [F "two"]',
-        'P=? [F "three"]',
-        'P=? [F "one" | "two" | "three"]',
-        'P=? [G F "one"]',
-        'P=? [G F "two"]',
-        'P=? [G F "three"]',
+        'Pmax=? [F "one"]',
+        'Pmax=? [F "two"]',
+        'Pmax=? [F "three"]',
+        'Pmax=? [F "one" | "two" | "three"]',
+        'Pmax=? [G F "one"]',
+        'Pmax=? [G F "two"]',
+        'Pmax=? [G F "three"]',
     ]
 
     properties = stormpy.parse_properties(';'.join(properties_raw))
@@ -163,7 +161,7 @@ if __name__ == "__main__":
         for state in m.states:
             for action in state.actions:
                 for transition in action.transitions:
-                    print(f"{state.id}, {state.labels}, {transition.value()}, {transition.column}")
+                    print(f"Action {action.id}: {state.id}, {state.labels}, {transition.value()}, {transition.column}")
 
         for p in range(len(properties)):
             result_base = stormpy.model_checking(model, properties[p])
