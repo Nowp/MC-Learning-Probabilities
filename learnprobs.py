@@ -134,6 +134,9 @@ if __name__ == "__main__":
         'P=? [F "two"]',
         'P=? [F "three"]',
         'P=? [F "one" | "two" | "three"]',
+        'P=? [G F "one"]',
+        'P=? [G F "two"]',
+        'P=? [G F "three"]',
     ]
 
     properties = stormpy.parse_properties(';'.join(properties_raw))
