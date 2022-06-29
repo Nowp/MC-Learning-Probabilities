@@ -105,7 +105,7 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
         i = row[start]
         for j in range(i, row[start + 1]):
             if col[j] == dest:
-                k[i,j] += 1
+                k[i, j] += 1
 
     # Updates alpha (a) by adding k's values to it.
     for elem in k:
@@ -146,20 +146,17 @@ if __name__ == "__main__":
         method = sys.argv[1]
         if method == "frequentist":
             matrix = frequentist(obs, model)
-            m = model_from_sparse_matrix(matrix, model.labeling)
-
-            for state in m.states:
-                for action in state.actions:
-                    for transition in action.transitions:
-                        print(f"{state.id}, {state.labels}, {transition.value()}, {transition.column}")
         elif method == "bayesian":
             matrix = bayesian_dirichlet(obs, model)
-            m = model_from_sparse_matrix(matrix, model.labeling)
+        else:
+            raise NotImplementedError("This method is not implemented")
 
-            for state in m.states:
-                for action in state.actions:
-                    for transition in action.transitions:
-                        print(f"{state.id}, {state.labels}, {transition.value()}, {transition.column}")
+        m = model_from_sparse_matrix(matrix, model.labeling)
+
+        for state in m.states:
+            for action in state.actions:
+                for transition in action.transitions:
+                    print(f"{state.id}, {state.labels}, {transition.value()}, {transition.column}")
 
         for p in range(len(properties)):
             result_base = stormpy.model_checking(model, properties[p])
