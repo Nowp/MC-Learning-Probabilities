@@ -1,6 +1,7 @@
 import math
 import os
 import sys
+import time
 
 import numpy
 import numpy as np
@@ -33,7 +34,7 @@ def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix, labels: stormpy
     return dtmc
 
 
-def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float = 0) -> stormpy.SparseMatrix:
+def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, coupling: (np.ndarray, [[int, int, int]]) = None, smoothing: float = 0) -> stormpy.SparseMatrix:
     """
     Learn the probabilities of a model using the frequentist way.
 
@@ -45,13 +46,22 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
     :param sample: List of random observations on the model
     :param model: DTMC model which we want to learn the transition probabilities.
     """
+    start_time = time.perf_counter()
     n_states = model.nr_states
     n_choices = [len(s.actions) for s in model.states]
-    n = np.zeros([max(n_choices), n_states])
-    nb_trans = np.zeros([max(n_choices), n_states], numpy.int8)
+    max_choices = max(n_choices)
 
-    row = np.zeros([max(n_choices), n_states + 1], numpy.int8)
-    col = [[] for _ in range(max(n_choices))]
+    if coupling is None:
+        coupling_matrix = np.zeros([max_choices, n_states, n_states])
+        coupling_delegates = []
+    else:
+        coupling_matrix, coupling_delegates = coupling
+
+    n = np.zeros([max_choices, n_states])
+    nb_trans = np.zeros([max_choices, n_states], numpy.int8)
+
+    row = np.zeros([max_choices, n_states + 1], numpy.int8)
+    col = [[] for _ in range(max_choices)]
     for s in model.states:
         for act in s.actions:
             nb_trans[act.id][s.id] = len(act.transitions)
@@ -59,14 +69,20 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
                 row[act.id, s.id + 1] = row[act.id, s.id] + nb_trans[act.id][s.id]
                 col[act.id].append(t.column)
 
-    values = np.zeros([max(n_choices), np.sum(nb_trans)])
+    values = np.zeros([max_choices, np.sum(nb_trans)])
+
+    delegate_pos = [-1 for _ in range(len(coupling_delegates))]
 
     for (start, dest, choice) in sample:
-        n[choice, start] += 1
-        i = row[choice, start]
-        for j in range(i, row[choice, start + 1]):
-            if col[choice][j] == dest:
-                values[choice, j] += 1
+        coupling_group = coupling_matrix[choice, start, dest] - 1
+        if coupling_group == -1 or (start, dest, choice) == coupling_delegates[coupling_group][0]:
+            n[choice, start] += 1
+            i = row[choice, start]
+            for j in range(i, row[choice, start + 1]):
+                if col[choice][j] == dest:
+                    values[choice, j] += 1
+                    if coupling_group >= 0:
+                        delegate_pos[coupling_group] = j
 
     # estimate p with the mode
     choice = 0
@@ -78,11 +94,18 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
             local_choice = choice - next_group
             start, end = row[local_choice, s], row[local_choice, s + 1]
             for i in range(start, end):
-                values[local_choice, i] = (values[local_choice, i] + smoothing) / (n[local_choice, s] + nb_trans[local_choice, s] * smoothing)
                 c = col[local_choice][i]
-                v = values[local_choice, i]
+                coupling_group = coupling_matrix[local_choice, s, c] - 1
+                if coupling_group == -1 or (s, c, choice) == coupling_delegates[coupling_group][0]:
+                    values[local_choice, i] = (values[local_choice, i] + smoothing) / (n[local_choice, s] + nb_trans[local_choice, s] * smoothing)
+                    v = values[local_choice, i]
+                else:
+                    v = values[coupling_delegates[coupling_group][0][2], delegate_pos[coupling_group]]
+
                 builder.add_next_value(choice, c, v)
         next_group = choice + 1
+
+    print(f"Total time :{time.perf_counter() - start_time}")
 
     return builder.build()
 
@@ -155,6 +178,19 @@ if __name__ == "__main__":
 
     properties = stormpy.parse_properties(';'.join(properties_raw))
     m = None
+
+    coupling_matrix = np.zeros([3, 43, 43], dtype=numpy.int8)
+    coupling_matrix[2, 0, 1] = 1
+    coupling_matrix[1, 2, 5] = 1
+    coupling_matrix[2, 3, 1] = 1
+    coupling_matrix[0, 0, 2] = 2
+    coupling_matrix[0, 1, 4] = 2
+    coupling_matrix[0, 2, 6] = 2
+
+    coupling_delegates = [
+        [(0, 1, 2), (2, 5, 1), (3, 1, 2)],
+        [(0, 2, 0), (1, 4, 0), (2, 6, 0)]
+    ]
 
     if len(sys.argv) > 1:
         method = sys.argv[1]
