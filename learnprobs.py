@@ -29,7 +29,7 @@ def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix, labels: stormpy
 
     components = stormpy.SparseModelComponents(transition_matrix=trans_matrix)
     components.state_labeling = labeling
-    dtmc = stormpy.storage.SparseDtmc(components)
+    dtmc = stormpy.storage.SparseMdp(components)
     return dtmc
 
 
@@ -86,8 +86,7 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
     """
     n_states = model.nr_states
     m = model.nr_transitions
-    print(model.choice_origins)
-    print(model.choice_labeling)
+    n_choices = max(np.transpose(sample)[2]) + 1
     nb_trans = [len(s.actions[0].transitions) for s in model.states]
 
     row = np.zeros(n_states + 1, numpy.int8)
@@ -101,29 +100,32 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
     col = np.array(col)
 
     values = np.zeros(np.sum(nb_trans))
-    a = np.ones(m)
-    k = np.zeros([m, m])
+    a = np.ones([n_choices, m])
+    k = np.zeros([n_choices, m, m])
 
     # Count N and k's values
-    for (start, dest) in sample:
+    for (start, dest, choice) in sample:
         i = row[start]
         for j in range(i, row[start + 1]):
             if col[j] == dest:
-                k[i, j] += 1
+                k[choice, i, j] += 1
 
     # Updates alpha (a) by adding k's values to it.
-    for elem in k:
-        a += elem
+    for i in range(len(k)):
+        for elem in k[i]:
+            a[i] += elem
 
     # estimate p with the mode
-    builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states, has_custom_row_grouping=True, row_groups=0)
+    builder = stormpy.SparseMatrixBuilder(rows=0, columns=0, force_dimensions=False, has_custom_row_grouping=True, row_groups=0)
     for s in range(n_states):
-        start, end = row[s], row[s + 1]
-        for i in range(start, end):
-            values[i] = (a[i] - 1) / (sum(a[start:end]) - nb_trans[s])
-            c = col[i]
-            v = values[i]
-            builder.add_next_value(s, c, v)
+        builder.new_row_group(s)
+        for choice in range(n_choices):
+            start, end = row[s], row[s + 1]
+            for i in range(start, end):
+                values[i] = (a[choice][i] - 1) / (sum(a[choice][start:end]) - nb_trans[s]) if a[choice][i] > 1 else 0
+                c = col[i]
+                v = values[i]
+                builder.add_next_value(choice, c, v)
 
     return builder.build()
 
