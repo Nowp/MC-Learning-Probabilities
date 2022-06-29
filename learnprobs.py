@@ -84,7 +84,6 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
     :param model: Model whose transitions must be estimated
     """
     n_states = model.nr_states
-    N = np.zeros(n_states)
     m = model.nr_transitions
     nb_trans = [len(s.actions[0].transitions) for s in model.states]
     row = np.zeros(n_states + 1, numpy.int8)
@@ -99,36 +98,23 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
 
     values = np.zeros(np.sum(nb_trans))
     a = np.ones(m)
-    k = np.zeros([np.sum(m), np.sum(m)])
+    k = np.zeros([m, m])
 
     # Count N and k's values
     for (start, dest) in sample:
-        N[start] += 1
         i = row[start]
         for j in range(i, row[start + 1]):
             if col[j] == dest:
                 k[i,j] += 1
 
-    # this is the multinomial likelihood, no clue what it's even used for as we obtain the estimations with the mode lower down
-    for s in range(n_states):
-        for i in range(row[s], row[s + 1]):
-            values[i] = (N[s] - 1) / math.prod([math.factorial(int(j)) for j in k[i]]) \
-                        * math.prod([math.pow(values[i], j) for j in k[i]])
-
-    rng = np.random.default_rng()
-    dirichlet_distribution = rng.dirichlet(a, m)
-
-    # this is supposed to be the posterior(p1,...,pm) ~ Dir(a1+k1,...,am+km), not sure what it is used for
-    newAlpha = a
+    # Updates alpha (a) by adding k's values to it.
     for elem in k:
-        newAlpha += elem
-    new_dist = rng.dirichlet(newAlpha, m)
+        a += elem
 
     # estimate p with the mode
     builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states)
     for s in range(n_states):
         for i in range(row[s], row[s + 1]):
-            #values[i] = (new_dist[i] - 1) / (sum(new_dist) - m)
             values[i] = (a[i] - 1) / (sum(a) - m)
             c = col[i]
             v = values[i]
@@ -179,5 +165,5 @@ if __name__ == "__main__":
             result_predict = stormpy.model_checking(m, properties[p])
             result_predict_vector = [x for x in result_predict.get_values()]
 
-            print(f"{p} : \n\tPrediction:\t{result_base_vector}\n\tBase:\t\t{result_predict_vector}")
+            print(f"{p} : \n\tBase:\t{result_base_vector}\n\tPrediction:\t\t{result_predict_vector}")
 
