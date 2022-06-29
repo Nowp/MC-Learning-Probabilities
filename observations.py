@@ -24,10 +24,15 @@ def gen_observations(model: stormpy.SparseDtmc, size: int = N, path=DEFAULT_PATH
     for state in model.states:
         for action in state.actions:
             for transition in action.transitions:
-                transitions.append((state.id, transition.column, action.id))
+                transitions.append((state.id, transition.column, action.id, transition.value()))
 
     with open(path, "w") as fw:
-        obs = [transitions[i] for i in np.random.randint(0, len(transitions), size)]
+        obs = []
+        while len(obs) < size:
+            (s, d, a, p) = transitions[np.random.randint(len(transitions))]
+            if np.random.random() < p:
+                obs.append((s, d, a))
+
         for (s, d, c) in obs:
             fw.write(f"{s} {d} {c}\n")
 
