@@ -114,8 +114,9 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
     # estimate p with the mode
     builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states)
     for s in range(n_states):
-        for i in range(row[s], row[s + 1]):
-            values[i] = (a[i] - 1) / (sum(a) - m)
+        start, end = row[s], row[s + 1]
+        for i in range(start, end):
+            values[i] = (a[i] - 1) / (sum(a[start:end]) - nb_trans[s])
             c = col[i]
             v = values[i]
             builder.add_next_value(s, c, v)
