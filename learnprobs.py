@@ -33,7 +33,7 @@ def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix, labels: stormpy
     return dtmc
 
 
-def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float = 0) -> (np.ndarray, np.ndarray, np.ndarray):
+def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float = 0) -> stormpy.SparseMatrix:
     """
     Learn the probabilities of a model using the frequentist way.
 
