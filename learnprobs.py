@@ -1,4 +1,5 @@
 import math
+import os
 import sys
 
 import numpy
@@ -85,7 +86,10 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
     """
     n_states = model.nr_states
     m = model.nr_transitions
+    print(model.choice_origins)
+    print(model.choice_labeling)
     nb_trans = [len(s.actions[0].transitions) for s in model.states]
+
     row = np.zeros(n_states + 1, numpy.int8)
     for s in range(n_states):
         row[s + 1] = row[s] + nb_trans[s]
@@ -112,7 +116,7 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
         a += elem
 
     # estimate p with the mode
-    builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states)
+    builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states, has_custom_row_grouping=True, row_groups=0)
     for s in range(n_states):
         start, end = row[s], row[s + 1]
         for i in range(start, end):
@@ -125,7 +129,7 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
 
 
 if __name__ == "__main__":
-    program = stormpy.parse_prism_program(stormpy.examples.files.prism_dtmc_die)
+    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "die_selection.nm"))
     model = stormpy.build_model(program)
 
     obs = observations.parse_observations(observations.DEFAULT_PATH)

@@ -1,3 +1,4 @@
+import os
 import sys
 
 import stormpy
@@ -23,12 +24,12 @@ def gen_observations(model: stormpy.SparseDtmc, size: int = N, path=DEFAULT_PATH
     for state in model.states:
         for action in state.actions:
             for transition in action.transitions:
-                transitions.append((state.id, transition.column))
+                transitions.append((state.id, transition.column, action.id))
 
     with open(path, "w") as fw:
         obs = [transitions[i] for i in np.random.randint(0, len(transitions), size)]
-        for (s, d) in obs:
-            fw.write(f"{s} {d}\n")
+        for (s, d, c) in obs:
+            fw.write(f"{s} {d} {c}\n")
 
 
 def parse_observations(path: str) -> np.ndarray:
@@ -49,7 +50,7 @@ if __name__ == "__main__":
     nb_values = N
     if len(sys.argv) > 1:
         nb_values = int(sys.argv[1])
-    program = stormpy.parse_prism_program(stormpy.examples.files.prism_dtmc_die)
+    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "die_selection.nm"))
     model = stormpy.build_model(program)
 
     gen_observations(model, nb_values)
