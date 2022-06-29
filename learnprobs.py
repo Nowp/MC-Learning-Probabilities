@@ -45,35 +45,44 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
     :param sample: List of random observations on the model
     :param model: DTMC model which we want to learn the transition probabilities.
     """
-    n_states = len(model.states)
-    n = np.zeros(n_states)
-    nb_trans = [len(s.actions[0].transitions) for s in model.states]
-    row = np.zeros(n_states + 1, numpy.int8)
-    for s in range(n_states):
-        row[s + 1] = row[s] + nb_trans[s]
+    n_states = model.nr_states
+    n_choices = [len(s.actions) for s in model.states]
+    n = np.zeros([max(n_choices), n_states])
+    nb_trans = np.zeros([max(n_choices), n_states], numpy.int8)
 
-    col = []
+    row = np.zeros([max(n_choices), n_states + 1], numpy.int8)
+    col = [[] for _ in range(max(n_choices))]
     for s in model.states:
-        for t in s.actions[0].transitions:
-            col.append(t.column)
-    col = np.array(col)
+        for act in s.actions:
+            nb_trans[act.id][s.id] = len(act.transitions)
+            for t in act.transitions:
+                row[act.id, s.id + 1] = row[act.id, s.id] + nb_trans[act.id][s.id]
+                col[act.id].append(t.column)
 
-    values = np.zeros(np.sum(nb_trans))
+    values = np.zeros([max(n_choices), np.sum(nb_trans)])
 
-    for (start, dest) in sample:
-        n[start] += 1
-        i = row[start]
-        for j in range(i, row[start + 1]):
-            if col[j] == dest:
-                values[j] += 1
+    for (start, dest, choice) in sample:
+        n[choice, start] += 1
+        i = row[choice, start]
+        for j in range(i, row[choice, start + 1]):
+            if col[choice][j] == dest:
+                values[choice, j] += 1
 
-    builder = stormpy.SparseMatrixBuilder(rows=n_states, columns=n_states)
+    # estimate p with the mode
+    choice = 0
+    next_group = 0
+    builder = stormpy.SparseMatrixBuilder(rows=0, columns=0, force_dimensions=False, has_custom_row_grouping=True, row_groups=0)
     for s in range(n_states):
-        for i in range(row[s], row[s + 1]):
-            values[i] = (values[i] + smoothing) / (n[s] + nb_trans[s] * smoothing)
-            c = col[i]
-            v = values[i]
-            builder.add_next_value(s, c, v)
+        builder.new_row_group(next_group)
+        for choice in range(next_group, next_group+n_choices[s]):
+            local_choice = choice - next_group
+            start, end = row[local_choice, s], row[local_choice, s + 1]
+            for i in range(start, end):
+                values[local_choice, i] = (values[local_choice, i] + smoothing) / (n[local_choice, s] + nb_trans[local_choice, s] * smoothing)
+                c = col[local_choice][i]
+                v = values[local_choice, i]
+                builder.add_next_value(choice, c, v)
+        next_group = choice + 1
 
     return builder.build()
 
