@@ -1,0 +1,7 @@
+Pmax=? [F "one"]
+Pmax=? [F "two"]
+Pmax=? [F "three"]
+Pmax=? [F "one" | "two" | "three"]
+Pmax=? [G F "one"]
+Pmax=? [G F "two"]
+Pmax=? [G F "three"]

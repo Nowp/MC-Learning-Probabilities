@@ -144,51 +144,41 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
 
 
 if __name__ == "__main__":
-    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "maze_2.nm"))
+    model_path = sys.argv[1]
+    properties_path = sys.argv[2]
+
+    program = stormpy.parse_prism_program(model_path)
     model = stormpy.build_model(program)
 
     obs = observations.parse_observations(observations.DEFAULT_PATH)
 
-    # properties_raw = [
-    #     'Pmax=? [F "one"]',
-    #     'Pmax=? [F "two"]',
-    #     'Pmax=? [F "three"]',
-    #     'Pmax=? [F "one" | "two" | "three"]',
-    #     'Pmax=? [G F "one"]',
-    #     'Pmax=? [G F "two"]',
-    #     'Pmax=? [G F "three"]',
-    # ]
-
-    properties_raw = [
-        'Pmax=? [ "goal"]',
-        'Pmax=? [F<=4 "goal"]'
-    ]
+    with open(properties_path, 'r') as fr:
+        properties_raw = fr.readlines()
 
     properties = stormpy.parse_properties(';'.join(properties_raw))
     m = None
 
-    if len(sys.argv) > 1:
-        method = sys.argv[1]
-        if method == "frequentist":
-            matrix = frequentist(obs, model)
-        elif method == "bayesian":
-            matrix = bayesian_dirichlet(obs, model)
-        else:
-            raise NotImplementedError("This method is not implemented")
+    method = sys.argv[3]
+    if method == "frequentist":
+        matrix = frequentist(obs, model)
+    elif method == "bayesian":
+        matrix = bayesian_dirichlet(obs, model)
+    else:
+        raise NotImplementedError("This method is not implemented")
 
-        m = model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
+    m = model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
 
-        for state in m.states:
-            for action in state.actions:
-                for transition in action.transitions:
-                    print(f"Action {action.id}: {state.id}, {state.labels}, {transition.value()}, {transition.column}")
+    for state in m.states:
+        for action in state.actions:
+            for transition in action.transitions:
+                print(f"Action {action.id}: {state.id}, {state.labels}, {transition.value()}, {transition.column}")
 
-        for p in range(len(properties)):
-            result_base = stormpy.model_checking(model, properties[p])
-            result_base_vector = [x for x in result_base.get_values()]
+    for p in range(len(properties)):
+        result_base = stormpy.model_checking(model, properties[p])
+        result_base_vector = [x for x in result_base.get_values()]
 
-            result_predict = stormpy.model_checking(m, properties[p])
-            result_predict_vector = [x for x in result_predict.get_values()]
+        result_predict = stormpy.model_checking(m, properties[p])
+        result_predict_vector = [x for x in result_predict.get_values()]
 
-            print(f"{p} : \n\tBase:\t{result_base_vector}\n\tPrediction:\t\t{result_predict_vector}")
+        print(f"{p} : \n\tBase:\t{result_base_vector}\n\tPrediction:\t\t{result_predict_vector}")
 

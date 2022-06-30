@@ -52,10 +52,11 @@ def parse_observations(path: str) -> np.ndarray:
 
 
 if __name__ == "__main__":
+    model_path = sys.argv[1]
     nb_values = N
-    if len(sys.argv) > 1:
-        nb_values = int(sys.argv[1])
-    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "maze_2.nm"))
+    if len(sys.argv) > 2:
+        nb_values = int(sys.argv[2])
+    program = stormpy.parse_prism_program(model_path)
     model = stormpy.build_model(program)
 
     gen_observations(model, nb_values)
