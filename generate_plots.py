@@ -1,4 +1,6 @@
 import os
+import time
+
 import numpy.random
 import stormpy
 import learnprobs
@@ -36,39 +38,52 @@ for prop_path in os.listdir("properties"):
         properties_raw = fr.readlines()
         props.append(stormpy.parse_properties(';'.join(properties_raw)))
 
-result_tuples = []
-reward_tuples = []
-
+results = [[] for _ in range(len(models))]
+prob_s0 = [[] for _ in range(len(models))]
+sse = [[] for _ in range(len(models))]
+times = []
 for i in range(len(models)):
     model = models[i]
-    for prop in props[i]:
-        for ob in obs[i]:
-            matrix = learnprobs.frequentist(ob, model)
-            m1 = learnprobs.model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
+    for ob in obs[i]:
+        time_frequentist = time.time()
+        matrix = learnprobs.frequentist(ob, model, smoothing=1)
+        time_frequentist = time.time() - time_frequentist
+        m1 = learnprobs.model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
 
-            matrix = learnprobs.bayesian_dirichlet(ob, model)
-            m2 = learnprobs.model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
+        time_bayesian = time.time()
+        matrix = learnprobs.bayesian_dirichlet(ob, model)
+        time_bayesian = time.time() - time_bayesian
+        m2 = learnprobs.model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
 
+        times.append([time_frequentist * 1000, time_bayesian * 1000])
+
+        for prop in props[i]:
             result_base = stormpy.model_checking(model, prop)
             result_frequentist = stormpy.model_checking(m1, prop)
             result_bayesian = stormpy.model_checking(m2, prop)
 
-            # TODO: figure out what to do with these
-            # Maybe MSE of state-action reward could be used (estimation vs base)?
-            # Or/And a simple reward aggregate vs base?
-            # We could also do a time-based analysis by adding timers.
+            results[i].append([result_base, result_frequentist, result_bayesian])
+            prob_s0[i].append([result_base.at(model.initial_states[0]),
+                               result_frequentist.at(model.initial_states[0]),
+                               result_bayesian.at(model.initial_states[0])])
 
-            result_tuples.append((result_base, result_frequentist, result_bayesian))
-            reward_tuples.append((result_base.at(model.initial_states[0]),
-                                  result_frequentist.at(model.initial_states[0]),
-                                  result_bayesian.at(model.initial_states[0])))
+            sse_frequentist, sse_bayesian = 0, 0
+            for s in model.states:
+                p_base = results[i][-1][0].at(s)
+                p_frequentist = results[i][-1][1].at(s)
+                p_bayesian = results[i][-1][2].at(s)
 
-            print("Base reward: ", result_base.at(model.initial_states[0]))
-            print("Frequentist reward: ", result_frequentist.at(model.initial_states[0]))
-            print("Bayesian reward: ", result_bayesian.at(model.initial_states[0]))
+                sse_frequentist += (p_base - p_frequentist) ** 2
+                sse_bayesian += (p_base - p_bayesian) ** 2
+
+            sse[i].append([sse_frequentist, sse_bayesian])
+
+            print("Base prob at s0: ", result_base.at(model.initial_states[0]))
+            print("Frequentist prob at s0: ", result_frequentist.at(model.initial_states[0]))
+            print("Bayesian prob at s0: ", result_bayesian.at(model.initial_states[0]))
 
 # TODO: Use the reward tuples in a significant way by actually formatting data
-plt.plot(reward_tuples)
+plt.plot(prob_s0)
 
 # TODO: generate plots and save them in the plots folder
 plt.savefig(os.path.join("plots/", "plot.png"))
