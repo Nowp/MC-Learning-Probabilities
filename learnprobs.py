@@ -74,7 +74,7 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
             if col[choice][j] == dest:
                 values[choice, j] += 1
 
-    # estimate p with the mode
+    # estimate p
     choice = 0
     next_group = 0
     builder = stormpy.SparseMatrixBuilder(rows=0, columns=0, force_dimensions=False, has_custom_row_grouping=True, row_groups=0)
@@ -84,7 +84,10 @@ def frequentist(sample: np.ndarray, model: stormpy.SparseDtmc, smoothing: float 
             local_choice = choice - next_group
             start, end = row[local_choice, s], row[local_choice, s + 1]
             for i in range(start, end):
-                values[local_choice, i] = (values[local_choice, i] + smoothing) / (n[local_choice, s] + nb_trans[local_choice, s] * smoothing)
+                # Avoid division by 0
+                if (n[local_choice, s] + nb_trans[local_choice, s] * smoothing) != 0:
+                    # Determine values
+                    values[local_choice, i] = (values[local_choice, i] + smoothing) / (n[local_choice, s] + nb_trans[local_choice, s] * smoothing)
                 c = col[local_choice][i]
                 v = values[local_choice, i]
                 builder.add_next_value(choice, c, v)
