@@ -11,24 +11,30 @@ import stormpy.examples.files
 import observations
 
 
-def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix, labels: stormpy.StateLabeling = None) -> stormpy.SparseDtmc:
+def model_from_sparse_matrix(trans_matrix: stormpy.SparseMatrix,
+                             labels: stormpy.StateLabeling = None,
+                             rewards: dict[stormpy.SparseRewardModel] = None) -> stormpy.SparseDtmc:
     """
     Creates a DTMC model from a given transition matrix.
 
-    :param values: Value array (Number of Non-Zero elements)
-    :param col: Col array (Number of Non-Zero elements)
-    :param row: Row array (Number of states elements + 1)
-    :param labels: Dictionary of String -> BitVector used to assign label to each state
+
+    :param rewards: Dictionary of reward models
+    :param trans_matrix: Sparse matrix of transition probabilities
+    :param labels: StateLabeling object holding labels for each state
     """
-    N_states = trans_matrix.nr_rows
+    if rewards is None:
+        rewards = {}
+
+    n_states = trans_matrix.nr_rows
 
     if labels is None:
-        labeling = stormpy.storage.StateLabeling(N_states)
+        labeling = stormpy.storage.StateLabeling(n_states)
     else:
         labeling = labels
 
     components = stormpy.SparseModelComponents(transition_matrix=trans_matrix)
     components.state_labeling = labeling
+    components.reward_models = rewards
     dtmc = stormpy.storage.SparseMdp(components)
     return dtmc
 
@@ -138,19 +144,24 @@ def bayesian_dirichlet(sample: np.ndarray, model: stormpy.SparseDtmc):
 
 
 if __name__ == "__main__":
-    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "die_selection.nm"))
+    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "maze_2.nm"))
     model = stormpy.build_model(program)
 
     obs = observations.parse_observations(observations.DEFAULT_PATH)
 
+    # properties_raw = [
+    #     'Pmax=? [F "one"]',
+    #     'Pmax=? [F "two"]',
+    #     'Pmax=? [F "three"]',
+    #     'Pmax=? [F "one" | "two" | "three"]',
+    #     'Pmax=? [G F "one"]',
+    #     'Pmax=? [G F "two"]',
+    #     'Pmax=? [G F "three"]',
+    # ]
+
     properties_raw = [
-        'Pmax=? [F "one"]',
-        'Pmax=? [F "two"]',
-        'Pmax=? [F "three"]',
-        'Pmax=? [F "one" | "two" | "three"]',
-        'Pmax=? [G F "one"]',
-        'Pmax=? [G F "two"]',
-        'Pmax=? [G F "three"]',
+        'Pmax=? [ "goal"]',
+        'Pmax=? [F<=4 "goal"]'
     ]
 
     properties = stormpy.parse_properties(';'.join(properties_raw))
@@ -165,7 +176,7 @@ if __name__ == "__main__":
         else:
             raise NotImplementedError("This method is not implemented")
 
-        m = model_from_sparse_matrix(matrix, model.labeling)
+        m = model_from_sparse_matrix(matrix, model.labeling, model.reward_models)
 
         for state in m.states:
             for action in state.actions:

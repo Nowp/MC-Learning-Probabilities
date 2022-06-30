@@ -55,7 +55,7 @@ if __name__ == "__main__":
     nb_values = N
     if len(sys.argv) > 1:
         nb_values = int(sys.argv[1])
-    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "die_selection.nm"))
+    program = stormpy.parse_prism_program(os.path.join(stormpy.examples.files.testfile_dir, "mdp", "maze_2.nm"))
     model = stormpy.build_model(program)
 
     gen_observations(model, nb_values)
