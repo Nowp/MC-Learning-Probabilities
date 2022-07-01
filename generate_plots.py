@@ -19,20 +19,23 @@ numpy.random.seed(seed_number)
 
 models = []
 props = []
-nb_vals = [100, 1000, 5000, 10000]
+nb_vals = [100, 1000, 5000, 10000] # Sample sizes to use
 
+# Import models
 for model_path in os.listdir("models"):
     program = stormpy.parse_prism_program(os.path.join("models", model_path))
     models.append(stormpy.build_model(program))
 
 obs = [[] for _ in range(len(models))]
 
+# Generate and import observations
 for N in nb_vals:
     for model_index in range(len(models)):
         obs_path = os.path.join("observations", f"observation-{model_index}-{N}")
         observations.gen_observations(models[model_index], N, obs_path)
         obs[model_index].append(observations.parse_observations(obs_path))
 
+# Import properties
 for prop_path in os.listdir("properties"):
     with open(os.path.join("properties", prop_path), 'r') as fr:
         properties_raw = fr.readlines()
@@ -43,6 +46,7 @@ prob_s0 = [[[] for _ in range(len(obs[i]))] for i in range(len(models))]
 sse = [[[] for _ in range(len(obs[i]))] for i in range(len(models))]
 times = [[] for i in range(len(models))]
 
+# Perform estimations
 for i in range(len(models)):
     model = models[i]
     for j in range(len(obs[i])):
@@ -84,6 +88,7 @@ for i in range(len(models)):
             print("Frequentist prob at s0: ", result_frequentist.at(model.initial_states[0]))
             print("Bayesian prob at s0: ", result_bayesian.at(model.initial_states[0]))
 
+        # Comparison of estimations and base
         plt.title(f"SSE for each property, model {i}, sample of {len(ob)} size")
         plt.xlabel("Properties")
         plt.ylabel("SSE")
@@ -96,6 +101,7 @@ for i in range(len(models)):
         plt.savefig(os.path.join("plots/", f"plot_{i}_{len(ob)}.png"))
         plt.clf()
 
+    # Comparison of learning time between estimations
     plt.title(f"Learning time in microseconds by sample size")
     plt.xlabel("Sample size")
     plt.ylabel("Time (ms)")
