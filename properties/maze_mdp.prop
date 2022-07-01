@@ -1,2 +1,3 @@
-Pmax=? [ "goal"]
+Pmax=? [G F "goal"]
+Pmax=? [X ! "goal" => ! "goal"]
 Pmax=? [F<=4 "goal"]
