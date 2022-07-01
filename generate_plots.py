@@ -66,8 +66,8 @@ for i in range(len(models)):
 
             results[i][j].append([result_base, result_frequentist, result_bayesian])
             prob_s0[i][j].append([result_base.at(model.initial_states[0]),
-                               result_frequentist.at(model.initial_states[0]),
-                               result_bayesian.at(model.initial_states[0])])
+                                  result_frequentist.at(model.initial_states[0]),
+                                  result_bayesian.at(model.initial_states[0])])
 
             sse_frequentist, sse_bayesian = 0, 0
             for s in model.states:
@@ -84,30 +84,25 @@ for i in range(len(models)):
             print("Frequentist prob at s0: ", result_frequentist.at(model.initial_states[0]))
             print("Bayesian prob at s0: ", result_bayesian.at(model.initial_states[0]))
 
-        plt.title(f"SSE for each property, model {i}, sample of {len(ob)} size, Frequentist method")
+        plt.title(f"SSE for each property, model {i}, sample of {len(ob)} size")
         plt.xlabel("Properties")
         plt.ylabel("SSE")
-        plt.bar(numpy.arange(len(sse[i][j])), [sse[i][j][h][0] for h in range(len(props[i]))])
-        plt.savefig(os.path.join("plots/", f"plot_freq_{i}_{len(ob)}.png"))
+        width = 0.3
+        ind = numpy.arange(len(sse[i][j]))
+        plt.bar(ind, [sse[i][j][h][0] for h in range(len(props[i]))], width, label="Frequentist")
+        plt.bar(ind + width, [sse[i][j][h][1] for h in range(len(props[i]))], width, label="Bayesian")
+        plt.legend(loc="best")
+        plt.xticks(ind + width / 2, ind)
+        plt.savefig(os.path.join("plots/", f"plot_{i}_{len(ob)}.png"))
         plt.clf()
 
-        plt.title(f"SSE for each property, model {i}, sample of {len(ob)} size, Bayesian method")
-        plt.xlabel("Properties")
-        plt.ylabel("SSE")
-        plt.bar(numpy.arange(len(sse[i][j])), [sse[i][j][h][1] for h in range(len(props[i]))])
-        plt.savefig(os.path.join("plots/", f"plot_baye_{i}_{len(ob)}.png"))
-        plt.clf()
-
-    plt.title(f"Learning time in microseconds by sample size with Frequentist method")
+    plt.title(f"Learning time in microseconds by sample size")
     plt.xlabel("Sample size")
     plt.ylabel("Time (ms)")
-    plt.plot([len(obs[i][j]) for j in range(len(obs[i]))], [times[i][j][0] for j in range(len(obs[i]))])
-    plt.savefig(os.path.join("plots/", f"plot_freq_{i}_t_{len(obs[i])}.png"))
-    plt.clf()
-
-    plt.title(f"Learning time in microseconds by sample size with Bayesian method")
-    plt.xlabel("Sample size")
-    plt.ylabel("Time (ms)")
-    plt.plot([len(obs[i][j]) for j in range(len(obs[i]))], [times[i][j][1] for j in range(len(obs[i]))])
-    plt.savefig(os.path.join("plots/", f"plot_baye_{i}_t_{len(obs[i])}.png"))
+    plt.plot([len(obs[i][j]) for j in range(len(obs[i]))], [times[i][j][0] for j in range(len(obs[i]))],
+             label="Frequentist")
+    plt.plot([len(obs[i][j]) for j in range(len(obs[i]))], [times[i][j][1] for j in range(len(obs[i]))],
+             label="Bayesian")
+    plt.legend(loc="best")
+    plt.savefig(os.path.join("plots/", f"plot_{i}_t_{len(obs[i])}.png"))
     plt.clf()
